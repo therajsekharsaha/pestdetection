@@ -9,8 +9,8 @@ To set up and run the model, follow these steps:
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/your-username/pest-detection.git
-   cd pest-detection
+   git clone https://github.com/therajsekharsaha/pestdetection.git
+   cd pestdetection
    pip install -r requirements.txt
    python manage.py
 
