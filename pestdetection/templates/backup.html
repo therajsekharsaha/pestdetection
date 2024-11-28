@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Object Detection with YOLO</title>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome/css/font-awesome.min.css" rel="stylesheet" />
+</head>
+
+<body>
+  <style>
+    /* General reset and body settings */
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow-x: hidden;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Sidebar styling */
+    .sidebar {
+      width: 100%;
+      height: 60px;
+      background-color: #333;
+      color: white;
+      position: fixed;
+      bottom: 0;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .sidebar a {
+      text-decoration: none;
+      color: white;
+      display: flex;
+      align-items: center;
+      padding: 15px;
+      font-size: 18px;
+      transition: background-color 0.3s;
+    }
+
+    .sidebar a:hover {
+      background-color: #575757;
+    }
+
+    .sidebar a i {
+      margin-right: 10px;
+      font-size: 20px;
+    }
+
+    /* Show text only on larger screens */
+    .sidebar a span {
+      display: inline-block;
+    }
+
+    @media screen and (max-width: 768px) {
+      .sidebar a span {
+        display: none;
+      }
+
+      /* Heading styling for mobile */
+      h1 {
+        font-size: 20px;
+        padding: 0 20px;
+        text-align: center;
+      }
+
+      /* Drop Area Styling for mobile */
+      .drop-area {
+        width: 90%;
+        /* Make the drop area take up 90% of screen width */
+        height: 250px;
+        /* Reduce the height slightly for mobile */
+        padding: 20px;
+        /* Add padding inside the drop area */
+        font-size: 16px;
+        /* Adjust font size for readability */
+      }
+
+      .drop-area .message {
+        font-size: 16px;
+        /* Adjust message font size for mobile */
+      }
+    }
+
+    /* Content container */
+    .content {
+      margin-bottom: 70px;
+      padding: 20px;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Button style */
+    button {
+      padding: 10px 20px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background-color 0.3s;
+      margin-top: 20px;
+    }
+
+    button:hover {
+      background-color: #218838;
+    }
+
+    /* Media preview container */
+    #mediaPreviewContainer {
+      display: none;
+      text-align: center;
+      position: relative;
+    }
+
+    #closePreviewBtn {
+      background-color: red;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 5px 10px;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 10;
+    }
+
+    #closePreviewBtn:hover {
+      background-color: darkred;
+    }
+
+    /* Circular progress bar */
+    .progress-ring {
+      transform: rotate(-90deg);
+      width: 120px;
+      height: 120px;
+      display: inline-block;
+      position: relative;
+    }
+
+    .progress-ring circle {
+      fill: transparent;
+      stroke-width: 10;
+    }
+
+    .progress-ring .behind {
+      stroke: #ddd;
+    }
+
+    .progress-ring .front {
+      stroke: url(#progressGradient);
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.5s ease-in-out;
+    }
+
+    svg {
+      transform: rotate(-90deg);
+    }
+
+    #progressText {
+      font-size: 18px;
+      font-weight: bold;
+      color: #333;
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    /* Popup modal styling */
+    #popupContainer {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: white;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+      z-index: 1000;
+      max-width: 90%;
+      max-height: 80%;
+      overflow: hidden;
+    }
+
+    #progressBarContainer {
+      display: none;
+      position: absolute;
+      /* Position absolutely on the page */
+      top: 50%;
+      /* Move it 50% from the top of the page */
+      left: 50%;
+      /* Move it 50% from the left of the page */
+      transform: translate(-50%, -50%);
+      /* Adjust by its own width and height to be exactly in the center */
+      z-index: 1000;
+      /* Ensure it appears above other content */
+      text-align: center;
+    }
+
+
+    #popupContainer img,
+    #popupContainer video {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .popup-buttons {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 20px;
+    }
+
+    .popup-buttons button {
+      background-color: #007bff;
+      color: white;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .popup-buttons button:hover {
+      background-color: #0056b3;
+    }
+
+    /* Background overlay for the popup */
+    #overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: none;
+      z-index: 999;
+    }
+
+    /* Drop Area Style */
+    .drop-area {
+      width: 500px;
+      /* Default width */
+      height: 300px;
+      /* Default height */
+      border: 2px dashed #007bff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #e9ecef;
+      color: #007bff;
+      text-align: center;
+      border-radius: 10px;
+      transition: background-color 0.3s ease;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .drop-area.dragover {
+      background-color: #cce5ff;
+    }
+
+    .message {
+      font-size: 18px;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      margin: 0;
+    }
+  </style>
+
+
+  <!-- Sidebar navigation -->
+  <div class="sidebar">
+    <a href="#" id="selectImage"><i class="fa fa-image"></i><span>Image Selection</span></a>
+    <a href="#" id="selectVideo"><i class="fa fa-video-camera"></i><span>Video Selection</span></a>
+    <a href="#" id="startStream"><i class="fa fa-play-circle"></i><span>Start Streaming</span></a>
+  </div>
+
+  <!-- Main content area -->
+  <div class="content">
+    <h1>Upload a File or Start Streaming for YOLO Pest Detection</h1>
+
+    <div class="container">
+      <div class="drop-area" id="drop-area">
+        <p class="message" id="message">Drag and drop a file here or click to select</p>
+      </div>
+      <input type="file" id="file-input" class="file-input" style="display: none;" />
+    </div>
+
+    <!-- Media preview container -->
+    <div id="mediaPreviewContainer">
+      <img id="imagePreview" src="" alt="Image Preview" style="display:none; max-width: 640px; max-height: 360px;" />
+      <video id="videoPreview" width="640" height="360" controls style="display:none;"></video>
+      <button id="processMedia" style="display:none;">Process Media</button>
+      <button id="closePreviewBtn" style="display:none;">&#10005;</button>
+    </div>
+
+    <!-- Circular progress bar -->
+    <div id="progressBarContainer" style="display:none;">
+      <div class="progress-ring">
+        <svg width="120" height="120">
+          <defs>
+            <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#28a745; stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#ff5722; stop-opacity:1" />
+            </linearGradient>
+          </defs>
+          <circle class="behind" cx="60" cy="60" r="50"></circle>
+          <circle class="front" cx="60" cy="60" r="50" stroke-dasharray="314" stroke-dashoffset="314"></circle>
+        </svg>
+      </div>
+      <div id="progressText">0% Processing...</div>
+    </div>
+  </div>
+
+  <!-- Popup container for output media -->
+  <div id="overlay"></div>
+  <div id="popupContainer">
+    <div id="popupMedia"></div>
+    <div class="popup-buttons">
+      <button id="downloadBtn">Download</button>
+      <button id="closePopupBtn">Close</button>
+    </div>
+  </div>
+</body>
+
+
+<script>
+  // Reset preview and hide progress bar
+  function resetPreview() {
+    document.getElementById('imagePreview').style.display = 'none';
+    document.getElementById('videoPreview').style.display = 'none';
+    document.getElementById('processMedia').style.display = 'none';
+    document.getElementById('closePreviewBtn').style.display = 'none';
+    document.getElementById('progressBarContainer').style.display = 'none';
+    document.getElementById('progressText').innerText = '0% Processing...';
+    document.getElementById('drop-area').style.display = 'block'; // Show drop area when reset
+  }
+
+  // Handle image selection
+  document.getElementById('selectImage').addEventListener('click', function () {
+    resetPreview();
+
+    let input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = function (event) {
+      let file = event.target.files[0];
+      if (file) {
+        handleFileSelection(file);
+        document.getElementById('drop-area').style.display = 'none'; // Hide drop area after file is selected
+      }
+    };
+    input.click();
+  });
+
+  // Handle video selection
+  document.getElementById('selectVideo').addEventListener('click', function () {
+    resetPreview();
+
+    let input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'video/*';
+    input.onchange = function (event) {
+      let file = event.target.files[0];
+      if (file) {
+        handleFileSelection(file);
+        document.getElementById('drop-area').style.display = 'none'; // Hide drop area after file is selected
+      }
+    };
+    input.click();
+  });
+
+  // Close the preview (reset everything)
+  document.getElementById('closePreviewBtn').addEventListener('click', function () {
+    resetPreview();
+    window.selectedMedia = null;  // Clear the selected media
+  });
+
+  // Redirect to /start_stream for webcam streaming
+  document.getElementById('startStream').addEventListener('click', function () {
+    window.location.href = "/start_stream";
+  });
+
+  // Process media (image/video)
+  document.getElementById('processMedia').addEventListener('click', function () {
+    if (window.selectedMedia) {
+      document.getElementById('progressBarContainer').style.display = 'block';
+      let formData = new FormData();
+      formData.append("file", window.selectedMedia);
+
+      let xhr = new XMLHttpRequest();
+      xhr.open('POST', '/upload', true);
+
+      // Track upload progress
+      xhr.upload.addEventListener('progress', function (event) {
+        if (event.lengthComputable) {
+          let percentComplete = (event.loaded / event.total) * 100;
+          let dashoffset = 283 - (283 * (percentComplete / 100));
+          document.querySelector('.front').style.strokeDashoffset = dashoffset;
+          document.getElementById('progressText').innerText = Math.round(percentComplete) + '% Processing...';
+        }
+      });
+
+      xhr.onload = function () {
+        if (xhr.status === 200) {
+          let data = JSON.parse(xhr.responseText);
+          if (data.output_file) {
+            document.getElementById('progressBarContainer').style.display = 'none';
+            let outputMedia;
+            let outputUrl = '/static/output/' + data.output_file;
+            if (data.output_file.endsWith('.mp4')) {
+              outputMedia = document.createElement('video');
+              outputMedia.controls = true;
+              const source = document.createElement('source');
+              source.src = outputUrl;
+              source.type = 'video/mp4';
+              outputMedia.appendChild(source);
+            } else {
+              outputMedia = document.createElement('img');
+              outputMedia.src = outputUrl;
+              outputMedia.width = 640;
+            }
+
+            document.getElementById('popupMedia').innerHTML = '';
+            document.getElementById('popupMedia').appendChild(outputMedia);
+            document.getElementById('downloadBtn').onclick = function () {
+              const a = document.createElement('a');
+              a.href = outputUrl;
+              a.download = data.output_file;
+              a.click();
+            };
+            document.getElementById('popupContainer').style.display = 'block';
+            document.getElementById('overlay').style.display = 'block';
+          }
+        }
+      };
+
+      xhr.send(formData);
+    }
+  });
+
+  // Close popup
+  document.getElementById('closePopupBtn').addEventListener('click', function () {
+    document.getElementById('popupContainer').style.display = 'none';
+    document.getElementById('overlay').style.display = 'none';
+  });
+
+  // Handle drag and drop for file input
+  const dropArea = document.getElementById('drop-area');
+
+  // Prevent default behavior when file is dragged over the area
+  dropArea.addEventListener('dragover', function (event) {
+    event.preventDefault();
+    dropArea.classList.add('dragover');
+  });
+
+  // Remove dragover style when file is dragged out
+  dropArea.addEventListener('dragleave', function (event) {
+    dropArea.classList.remove('dragover');
+  });
+
+  // Handle drop event
+  dropArea.addEventListener('drop', function (event) {
+    event.preventDefault();
+    dropArea.classList.remove('dragover');
+    const files = event.dataTransfer.files;
+    if (files.length > 0) {
+      const file = files[0];
+      handleFileSelection(file);
+      dropArea.style.display = 'none';  // Hide drop area after file is dropped
+    }
+  });
+
+  // Handle file selection (both from drag-and-drop and file input)
+  function handleFileSelection(file) {
+    let reader = new FileReader();
+    reader.onload = function (e) {
+      if (file.type.startsWith('image')) {
+        document.getElementById('imagePreview').src = e.target.result;
+        document.getElementById('imagePreview').style.display = 'block';
+      } else if (file.type.startsWith('video')) {
+        let video = document.getElementById('videoPreview');
+        video.src = e.target.result;
+        video.style.display = 'block';
+      }
+      document.getElementById('processMedia').style.display = 'inline-block';
+      document.getElementById('closePreviewBtn').style.display = 'inline-block';
+    };
+    reader.readAsDataURL(file);
+    window.selectedMedia = file;
+    document.getElementById('mediaPreviewContainer').style.display = 'block';
+  }
+</script>
+
+</html>

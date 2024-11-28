@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drag and Drop or Select File with Preview</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            height: 100vh;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            text-align: center;
+        }
+        .drop-area {
+            width: 600px; /* Increased width */
+            height: 200px;
+            border: 2px dashed #007bff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #e9ecef;
+            color: #007bff;
+            text-align: center;
+            border-radius: 10px;
+            transition: background-color 0.3s ease;
+            cursor: pointer;
+        }
+        .drop-area.dragover {
+            background-color: #cce5ff;
+        }
+        .message {
+            font-size: 18px;
+        }
+
+        /* Preview Modal Styles */
+        .preview-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .preview-modal {
+            background-color: #fff;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+        .preview-image {
+            max-width: 90%;
+            max-height: 80vh;
+            margin-bottom: 20px;
+        }
+        .close-preview {
+            background-color: #ff4d4d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 5px;
+        }
+        .close-preview:hover {
+            background-color: #e60000;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="drop-area" id="drop-area">
+            <div class="message" id="message">
+                Drag and drop a file here or click to select
+            </div>
+        </div>
+        <input type="file" id="file-input" class="file-input" style="display: none;">
+    </div>
+
+    <!-- Preview Modal -->
+    <div id="preview-container" class="preview-container" style="display: none;">
+        <div class="preview-modal">
+            <img id="preview-image" class="preview-image" src="" alt="Preview">
+            <button class="close-preview" onclick="closePreview()">Close Preview</button>
+        </div>
+    </div>
+
+    <script>
+        const dropArea = document.getElementById('drop-area');
+        const message = document.getElementById('message');
+        const fileInput = document.getElementById('file-input');
+        const previewContainer = document.getElementById('preview-container');
+        const previewImage = document.getElementById('preview-image');
+
+        // Prevent default behaviors when dragging over the area
+        dropArea.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            dropArea.classList.add('dragover');
+        });
+
+        dropArea.addEventListener('dragleave', () => {
+            dropArea.classList.remove('dragover');
+        });
+
+        // Handle the drop event
+        dropArea.addEventListener('drop', (event) => {
+            event.preventDefault();
+            dropArea.classList.remove('dragover');
+            const file = event.dataTransfer.files[0];
+            if (file) {
+                displayFilePreview(file);
+            }
+        });
+
+        // Handle file selection from the input field (triggered when user clicks on drop area)
+        dropArea.addEventListener('click', () => {
+            fileInput.click(); // Trigger file input dialog when drop area is clicked
+        });
+
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                displayFilePreview(file);
+            }
+        });
+
+        // Function to display file preview
+        function displayFilePreview(file) {
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImage.src = e.target.result;
+                    previewContainer.style.display = 'flex';
+                    document.body.style.overflow = 'hidden';  // Disable scrolling when preview is shown
+                };
+                reader.readAsDataURL(file);
+            } else {
+                message.textContent = `File uploaded: ${file.name}. Only image files can be previewed.`;
+            }
+        }
+
+        // Function to close the preview
+        function closePreview() {
+            previewContainer.style.display = 'none';
+            document.body.style.overflow = 'auto';  // Enable scrolling again
+        }
+    </script>
+
+</body>
+</html>
